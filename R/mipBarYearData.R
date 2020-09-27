@@ -4,6 +4,7 @@
 #' 
 #' 
 #' @param x Data to plot. Allowed data formats: magpie or quitte
+#' @param x_hist historical data to plot. Allowed data formats: magpie or quitte, If no historic information is provided the plot will ignore it.
 #' @param ylab y-axis text
 #' @param xlab x-axis text
 #' @param title title appering at the top of the plot
@@ -40,21 +41,36 @@
 #
 
 
-mipBarYearData <- function(x, colour = NULL, ylab = NULL, xlab = NULL,
+mipBarYearData <- function(x, x_hist=NULL, colour = NULL, ylab = NULL, xlab = NULL,
                            title = NULL, scenario_markers = NULL) {
   x <- as.quitte(x)
   
   if (length(unique(x$model)) > 1) {
     stop("this plot can only deal with data that have only one model")
   }
-  
+
   if (!is.integer(x$period)) {
     stop('this plot can only deal with data that have integer periods')
   }
   
+  if(!is.null(x_hist)) {
+    x_hist <- as.quitte(x_hist)
+  
+    if (length(unique(x_hist$model)) > 1) {
+      stop("this plot can only deal with historical data that have only one model")
+    }
+    
+    if (!is.integer(x_hist$period)) {
+      stop('this plot can only deal with historical data that have integer periods')
+    }
+    
+    x <- rbind(x, x_hist)  
+    
+  }
+
   # calculate y-axis label
   x$variable <- shorten_legend(x$variable,identical_only = TRUE)
-  
+
   if (is.null(ylab)) {   
      ylab <- paste0(sub(".$","",attr(x$variable,"front")),attr(x$variable,"back"))
      # add unit
@@ -70,13 +86,13 @@ mipBarYearData <- function(x, colour = NULL, ylab = NULL, xlab = NULL,
     mutate(xpos = 1:n()) %>% 
     filter('\x13' != !!sym('scenario')) %>% 
     droplevels()
-  
+    
   x <- x %>% 
     inner_join(
       xpos,
-      
       c('scenario', 'period')
     )
+
   
   # set up scenario markers
   if (is.null(scenario_markers))
@@ -115,6 +131,7 @@ mipBarYearData <- function(x, colour = NULL, ylab = NULL, xlab = NULL,
   }
   
   # make plot
+
   p <- ggplot() +
     geom_col(data = x,
              mapping = aes(x = !!sym('xpos'), y = !!sym('value'), 
